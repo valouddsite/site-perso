@@ -1,0 +1,172 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Liste de Séries</title>
+    <style>
+        /* Ajoutez vos styles CSS ici */
+    </style>
+</head>
+<body>
+
+<h1>Ma Liste de Séries</h1>
+
+<div id="user-status">
+    <!-- Affiche l'état de connexion de l'utilisateur ici -->
+</div>
+
+<div>
+    <label for="series-title">Titre de la série:</label>
+    <input type="text" id="series-title" placeholder="Titre de la série">
+    <label for="series-category">Catégorie:</label>
+    <select id="series-category">
+        <option value="vue">Vue</option>
+        <option value="favoris">Favoris</option>
+        <option value="a-voir">À voir</option>
+    </select>
+    <button onclick="rechercherAffiche()">Rechercher Affiche</button>
+</div>
+
+<div id="series-list">
+    <!-- La liste des séries sera affichée ici -->
+</div>
+
+<script>
+    var seriesData = []; // Liste pour stocker les données de chaque série
+    var userId = ''; // Identifiant de l'utilisateur (à obtenir lors de la connexion)
+
+    function rechercherAffiche() {
+        var title = document.getElementById("series-title").value;
+        var category = document.getElementById("series-category").value;
+
+        if (title && userId) {
+            var tmdbUrl = 'https://api.themoviedb.org/3/search/tv?api_key=YOUR_API_KEY&query=' + encodeURIComponent(title);
+
+            fetch(tmdbUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.results && data.results.length > 0) {
+                        var seriesList = document.getElementById("series-list");
+
+                        var serieData = {
+                            title: title,
+                            posterPath: data.results[0].poster_path,
+                            category: category
+                        };
+
+                        seriesData.push(serieData); // Ajouter les données de la série à la liste
+
+                        var serieDiv = document.createElement("div");
+                        serieDiv.classList.add("serie");
+
+                        var img = document.createElement("img");
+                        img.src = 'https://image.tmdb.org/t/p/w185' + serieData.posterPath;
+                        img.alt = serieData.title;
+
+                        var titleElement = document.createElement("h2");
+                        titleElement.textContent = serieData.title;
+
+                        serieDiv.appendChild(img);
+                        serieDiv.appendChild(titleElement);
+
+                        seriesList.appendChild(serieDiv);
+
+                        // Ajout de la série à l'utilisateur via l'API
+                        ajouterSerieUtilisateur(serieData);
+                    } else {
+                        console.log('Aucun résultat trouvé pour la série.');
+                    }
+                })
+                .catch(error => console.error('Erreur lors de la recherche d\'affiche:', error));
+        }
+    }
+
+    function filtrerSeriesParCategorie() {
+        var category = document.getElementById("series-category").value;
+        var seriesList = document.getElementById("series-list");
+        var seriesDivs = seriesList.getElementsByClassName("serie");
+
+        for (var i = 0; i < seriesDivs.length; i++) {
+            var serieDiv = seriesDivs[i];
+            var serieCategory = seriesData[i].category;
+
+            if ((serieCategory === category || category === 'vue') && !(serieCategory === 'a-voir' && category === 'vue')) {
+                serieDiv.style.display = 'block';
+            } else {
+                serieDiv.style.display = 'none';
+            }
+        }
+    }
+
+    function afficherStatutUtilisateur() {
+        var userStatusDiv = document.getElementById("user-status");
+
+        // Vérifier si l'utilisateur est connecté (exemple basique)
+        var utilisateurConnecte = userId !== '';
+
+        if (utilisateurConnecte) {
+            userStatusDiv.textContent = "Connecté en tant qu'utilisateur";
+            // Récupérer les séries de l'utilisateur via l'API
+            recupererSeriesUtilisateur();
+        } else {
+            userStatusDiv.textContent = "Non connecté";
+        }
+    }
+
+    function ajouterSerieUtilisateur(serieData) {
+        fetch(`/api/addseries/${userId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(serieData)
+        })
+        .then(response => response.json())
+        .then(data => console.log(data))
+        .catch(error => console.error('Erreur lors de l\'ajout de la série à l\'utilisateur:', error));
+    }
+
+    function recupererSeriesUtilisateur() {
+        fetch(`/api/getseries/${userId}`)
+            .then(response => response.json())
+            .then(data => {
+                seriesData = data;
+                // Mettre à jour l'affichage des séries
+                afficherSeries();
+            })
+            .catch(error => console.error('Erreur lors de la récupération des séries de l\'utilisateur:', error));
+    }
+
+    function afficherSeries() {
+        var seriesList = document.getElementById("series-list");
+        seriesList.innerHTML = '';
+
+        seriesData.forEach(serieData => {
+            var serieDiv = document.createElement("div");
+            serieDiv.classList.add("serie");
+
+            var img = document.createElement("img");
+            img.src = 'https://image.tmdb.org/t/p/w185' + serieData.posterPath;
+            img.alt = serieData.title;
+
+            var titleElement = document.createElement("h2");
+            titleElement.textContent = serieData.title;
+
+            serieDiv.appendChild(img);
+            serieDiv.appendChild(titleElement);
+
+            seriesList.appendChild(serieDiv);
+        });
+    }
+
+    // Ajoutez un écouteur d'événements pour détecter les changements de catégorie
+    document.getElementById("series-category").addEventListener("change", filtrerSeriesParCategorie);
+
+    // Appel initial pour afficher le statut de l'utilisateur
+    afficherStatutUtilisateur();
+</script>
+
+</body>
+</html>
